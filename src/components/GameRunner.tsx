@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import Icon from '@/components/ui/icon';
+import { Progress } from '@/components/ui/progress';
 
 interface GameRunnerProps {
   selectedCharacter: number;
 }
 
-type Obstacle = {
+type Donut = {
   x: number;
-  type: 'spike' | 'gap';
+  y: number;
 };
 
-type Coin = {
+type Obstacle = {
   x: number;
   y: number;
 };
@@ -19,18 +19,21 @@ type Coin = {
 const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [score, setScore] = useState(0);
-  const [coins, setCoins] = useState(0);
-  const [distance, setDistance] = useState(0);
+  const [donuts, setDonuts] = useState(0);
   const [playerY, setPlayerY] = useState(0);
   const [isJumping, setIsJumping] = useState(false);
-  const [gameSpeed, setGameSpeed] = useState(5);
+  const [playerSpeed, setPlayerSpeed] = useState(3);
+  const [enemyDistance, setEnemyDistance] = useState(400);
+  const [donutsList, setDonutsList] = useState<Donut[]>([]);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
-  const [coinsList, setCoinsList] = useState<Coin[]>([]);
   const [gameOver, setGameOver] = useState(false);
+  const [gameWon, setGameWon] = useState(false);
+  const [speedBoost, setSpeedBoost] = useState(0);
   
   const gameLoopRef = useRef<number>();
   const groundY = 0;
   const jumpHeight = 150;
+  const enemySpeed = 4;
 
   const characters = ['🍪', '🥐', '🧁', '🍩'];
 
@@ -38,11 +41,11 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
     if (!isPlaying) return;
 
     let jumpVelocity = 0;
+    let donutSpawnCounter = 0;
     let obstacleSpawnCounter = 0;
-    let coinSpawnCounter = 0;
+    let speedBoostTimer = speedBoost;
 
     const gameLoop = () => {
-      setDistance(prev => prev + 0.1);
       setScore(prev => prev + 1);
 
       if (isJumping) {
@@ -57,37 +60,74 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
         });
       }
 
+      if (speedBoostTimer > 0) {
+        speedBoostTimer -= 1;
+        setSpeedBoost(speedBoostTimer);
+      }
+
+      const currentPlayerSpeed = speedBoostTimer > 0 ? playerSpeed + 3 : playerSpeed;
+
+      setEnemyDistance(prev => {
+        const newDistance = prev + (enemySpeed - currentPlayerSpeed);
+        
+        if (newDistance <= 50) {
+          setGameWon(true);
+          setIsPlaying(false);
+          return prev;
+        }
+        
+        if (newDistance >= 600) {
+          setGameOver(true);
+          setIsPlaying(false);
+          return prev;
+        }
+        
+        return newDistance;
+      });
+
+      donutSpawnCounter++;
+      if (donutSpawnCounter > 50) {
+        donutSpawnCounter = 0;
+        const newDonut: Donut = {
+          x: 600,
+          y: Math.random() > 0.5 ? 100 : 50
+        };
+        setDonutsList(prev => [...prev, newDonut]);
+      }
+
       obstacleSpawnCounter++;
-      if (obstacleSpawnCounter > 60) {
+      if (obstacleSpawnCounter > 80) {
         obstacleSpawnCounter = 0;
         const newObstacle: Obstacle = {
           x: 600,
-          type: Math.random() > 0.5 ? 'spike' : 'gap'
+          y: 0
         };
         setObstacles(prev => [...prev, newObstacle]);
       }
 
-      coinSpawnCounter++;
-      if (coinSpawnCounter > 30) {
-        coinSpawnCounter = 0;
-        const newCoin: Coin = {
-          x: 600,
-          y: Math.random() > 0.5 ? 80 : 40
-        };
-        setCoinsList(prev => [...prev, newCoin]);
-      }
-
-      setObstacles(prev => 
+      setDonutsList(prev =>
         prev
-          .map(obs => ({ ...obs, x: obs.x - gameSpeed }))
+          .map(donut => ({ ...donut, x: donut.x - 5 }))
+          .filter(donut => donut.x > -30)
+      );
+
+      setObstacles(prev =>
+        prev
+          .map(obs => ({ ...obs, x: obs.x - 5 }))
           .filter(obs => obs.x > -50)
       );
 
-      setCoinsList(prev =>
-        prev
-          .map(coin => ({ ...coin, x: coin.x - gameSpeed }))
-          .filter(coin => coin.x > -30)
-      );
+      setDonutsList(prev => {
+        return prev.filter(donut => {
+          if (donut.x > 20 && donut.x < 80 && Math.abs(donut.y - (playerY + 20)) < 40) {
+            setDonuts(d => d + 1);
+            setScore(s => s + 100);
+            setSpeedBoost(180);
+            return false;
+          }
+          return true;
+        });
+      });
 
       setObstacles(prev => {
         const playerHit = prev.some(obs => {
@@ -106,17 +146,6 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
         return prev;
       });
 
-      setCoinsList(prev => {
-        return prev.filter(coin => {
-          if (coin.x > 20 && coin.x < 80 && Math.abs(coin.y - (playerY + 20)) < 30) {
-            setCoins(c => c + 1);
-            setScore(s => s + 50);
-            return false;
-          }
-          return true;
-        });
-      });
-
       if (isPlaying) {
         gameLoopRef.current = requestAnimationFrame(gameLoop);
       }
@@ -129,7 +158,7 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
         cancelAnimationFrame(gameLoopRef.current);
       }
     };
-  }, [isPlaying, isJumping, playerY, gameSpeed]);
+  }, [isPlaying, isJumping, playerY, playerSpeed, speedBoost]);
 
   const handleJump = () => {
     if (!isJumping && playerY === groundY && isPlaying) {
@@ -141,13 +170,15 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
   const startGame = () => {
     setIsPlaying(true);
     setGameOver(false);
+    setGameWon(false);
     setScore(0);
-    setCoins(0);
-    setDistance(0);
+    setDonuts(0);
     setPlayerY(0);
+    setEnemyDistance(400);
+    setDonutsList([]);
     setObstacles([]);
-    setCoinsList([]);
     setIsJumping(false);
+    setSpeedBoost(0);
   };
 
   useEffect(() => {
@@ -162,18 +193,38 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [isPlaying, isJumping, playerY]);
 
+  const distancePercent = Math.max(0, Math.min(100, ((600 - enemyDistance) / 550) * 100));
+
   return (
     <div className="w-full">
       <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-        <div className="flex gap-4 text-xs">
+        <div className="flex gap-4 text-xs flex-wrap">
           <div className="bg-[#FFB84D] pixel-borders px-4 py-2">
             <span className="text-[#8B4513]">ОЧКИ: {Math.floor(score)}</span>
           </div>
           <div className="bg-[#FFB84D] pixel-borders px-4 py-2">
-            <span className="text-[#8B4513]">🪙 {coins}</span>
+            <span className="text-[#8B4513]">🍩 {donuts}</span>
           </div>
-          <div className="bg-[#FFB84D] pixel-borders px-4 py-2">
-            <span className="text-[#8B4513]">📏 {Math.floor(distance)}м</span>
+          <div className={`pixel-borders px-4 py-2 ${speedBoost > 0 ? 'bg-[#FF6B9D] animate-pulse' : 'bg-gray-300'}`}>
+            <span className={speedBoost > 0 ? 'text-white' : 'text-gray-500'}>
+              ⚡ {speedBoost > 0 ? 'УСКОРЕНИЕ!' : 'БЕЗ УСКОРЕНИЯ'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <div className="flex justify-between items-center mb-2 text-xs">
+          <span className="text-[#8B4513]">ТЫ</span>
+          <span className="text-[#8B4513] font-bold">РАССТОЯНИЕ ДО ВРАГА</span>
+          <span className="text-red-600 font-bold">ВРАГ 👹</span>
+        </div>
+        <div className="relative">
+          <Progress value={distancePercent} className="h-6 pixel-borders" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-xs text-[#8B4513] font-bold pixel-text-shadow">
+              {Math.floor(enemyDistance)}м
+            </span>
           </div>
         </div>
       </div>
@@ -182,36 +233,59 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
         className="relative w-full h-[400px] bg-gradient-to-b from-sky-200 to-green-200 pixel-borders overflow-hidden cursor-pointer"
         onClick={handleJump}
       >
-        {!isPlaying && !gameOver && (
+        {!isPlaying && !gameOver && !gameWon && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 z-20">
             <h2 className="text-2xl text-white mb-4 pixel-text-shadow">
-              ГОТОВ БЕЖАТЬ?
+              ПОГОНЯ!
             </h2>
+            <p className="text-white text-sm mb-4 text-center px-4">
+              Враг убегает! Собирай пончики 🍩<br/>для ускорения и догони его!
+            </p>
             <Button 
               onClick={startGame}
               className="bg-[#FF6B9D] hover:bg-[#FF6B9D] text-white pixel-borders px-8 py-6 text-sm"
             >
-              СТАРТ
+              НАЧАТЬ ПОГОНЮ
             </Button>
             <p className="text-white text-xs mt-4">
-              Нажми ПРОБЕЛ или экран для прыжка
+              ПРОБЕЛ или клик для прыжка
             </p>
           </div>
         )}
 
         {gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 z-20">
-            <h2 className="text-2xl text-white mb-2 pixel-text-shadow">
-              ИГРА ОКОНЧЕНА!
+            <h2 className="text-3xl text-red-500 mb-2 pixel-text-shadow">
+              ВРАГ СБЕЖАЛ! 😢
             </h2>
             <p className="text-white text-sm mb-4">
-              Очки: {Math.floor(score)} | Монеты: {coins}
+              Очки: {Math.floor(score)} | Пончики: {donuts}
             </p>
             <Button 
               onClick={startGame}
               className="bg-[#FF6B9D] hover:bg-[#FF6B9D] text-white pixel-borders px-8 py-6 text-sm"
             >
-              ЕЩЁ РАЗ
+              ПОПРОБОВАТЬ СНОВА
+            </Button>
+          </div>
+        )}
+
+        {gameWon && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 z-20">
+            <h2 className="text-3xl text-yellow-400 mb-2 pixel-text-shadow animate-pulse">
+              ПОБЕДА! 🎉
+            </h2>
+            <p className="text-white text-lg mb-2">
+              ТЫ ПОЙМАЛ ВРАГА!
+            </p>
+            <p className="text-white text-sm mb-4">
+              Очки: {Math.floor(score)} | Пончики: {donuts}
+            </p>
+            <Button 
+              onClick={startGame}
+              className="bg-[#FF6B9D] hover:bg-[#FF6B9D] text-white pixel-borders px-8 py-6 text-sm"
+            >
+              ИГРАТЬ ЕЩЁ
             </Button>
           </div>
         )}
@@ -223,10 +297,25 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
           style={{
             left: '50px',
             bottom: `${playerY + 64}px`,
-            filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.3))'
+            filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.3))',
+            transform: speedBoost > 0 ? 'scale(1.2)' : 'scale(1)'
           }}
         >
           {characters[selectedCharacter]}
+          {speedBoost > 0 && (
+            <span className="absolute -right-4 top-0 text-2xl">💨</span>
+          )}
+        </div>
+
+        <div 
+          className="absolute text-6xl transition-all"
+          style={{
+            left: `${enemyDistance}px`,
+            bottom: '64px',
+            filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.3))'
+          }}
+        >
+          👹
         </div>
 
         {obstacles.map((obstacle, idx) => (
@@ -238,24 +327,20 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
               bottom: '64px'
             }}
           >
-            {obstacle.type === 'spike' ? (
-              <div className="text-4xl">🔺</div>
-            ) : (
-              <div className="w-12 h-12 bg-[#8B4513]" />
-            )}
+            <div className="text-4xl">🔺</div>
           </div>
         ))}
 
-        {coinsList.map((coin, idx) => (
+        {donutsList.map((donut, idx) => (
           <div
-            key={`coin-${idx}`}
-            className="absolute text-3xl animate-pulse"
+            key={`donut-${idx}`}
+            className="absolute text-4xl animate-pulse"
             style={{
-              left: `${coin.x}px`,
-              bottom: `${coin.y + 64}px`
+              left: `${donut.x}px`,
+              bottom: `${donut.y + 64}px`
             }}
           >
-            🪙
+            🍩
           </div>
         ))}
 
@@ -269,7 +354,7 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
       </div>
 
       <div className="mt-4 text-xs text-center text-[#8B4513]">
-        💡 Используй ПРОБЕЛ или нажми на игровое поле для прыжка
+        💡 Собирай пончики 🍩 для ускорения! Догони врага, но избегай шипов!
       </div>
     </div>
   );
