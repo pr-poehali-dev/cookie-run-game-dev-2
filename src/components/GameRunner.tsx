@@ -35,7 +35,8 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
   const jumpHeight = 150;
   const enemySpeed = 4;
 
-  const characters = ['🍪', '🥐', '🧁', '🍩'];
+  const playerImage = 'https://cdn.poehali.dev/files/94bca562-12a4-476f-a4ad-f2ea5123983c.jpg';
+  const enemyImage = 'https://cdn.poehali.dev/files/b/penguin/3Fc9gmAze04CdZE5EUWqU_output.png';
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -293,29 +294,45 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
         <div className="absolute bottom-0 left-0 right-0 h-16 bg-[#8B4513]" />
         
         <div 
-          className="absolute text-6xl transition-all duration-100"
+          className="absolute transition-all duration-100"
           style={{
             left: '50px',
             bottom: `${playerY + 64}px`,
-            filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.3))',
-            transform: speedBoost > 0 ? 'scale(1.2)' : 'scale(1)'
+            transform: speedBoost > 0 ? 'scale(1.1)' : 'scale(1)',
+            width: '80px',
+            height: '80px'
           }}
         >
-          {characters[selectedCharacter]}
+          <img 
+            src={playerImage} 
+            alt="Player" 
+            className="w-full h-full object-contain"
+            style={{
+              filter: 'drop-shadow(3px 3px 0px rgba(0,0,0,0.4))'
+            }}
+          />
           {speedBoost > 0 && (
-            <span className="absolute -right-4 top-0 text-2xl">💨</span>
+            <span className="absolute -right-2 top-0 text-3xl animate-pulse">💨</span>
           )}
         </div>
 
         <div 
-          className="absolute text-6xl transition-all"
+          className="absolute transition-all"
           style={{
             left: `${enemyDistance}px`,
             bottom: '64px',
-            filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.3))'
+            width: '90px',
+            height: '90px'
           }}
         >
-          👹
+          <img 
+            src={enemyImage} 
+            alt="Enemy" 
+            className="w-full h-full object-contain animate-pulse"
+            style={{
+              filter: 'drop-shadow(3px 3px 0px rgba(0,0,0,0.5))'
+            }}
+          />
         </div>
 
         {obstacles.map((obstacle, idx) => (

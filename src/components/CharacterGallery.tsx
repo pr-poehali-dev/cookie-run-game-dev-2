@@ -8,7 +8,7 @@ interface CharacterGalleryProps {
 }
 
 type Character = {
-  emoji: string;
+  image: string;
   name: string;
   description: string;
   speed: number;
@@ -20,58 +20,13 @@ type Character = {
 const CharacterGallery = ({ selectedCharacter, onSelectCharacter }: CharacterGalleryProps) => {
   const characters: Character[] = [
     {
-      emoji: '🍪',
-      name: 'Печенька',
-      description: 'Классический персонаж',
-      speed: 5,
-      jump: 3,
-      rarity: 'common',
-      unlocked: true
-    },
-    {
-      emoji: '🥐',
-      name: 'Круассан',
-      description: 'Быстрый и легкий',
+      image: 'https://cdn.poehali.dev/files/94bca562-12a4-476f-a4ad-f2ea5123983c.jpg',
+      name: 'Ледяной Воин',
+      description: 'Герой с магией льда',
       speed: 7,
-      jump: 4,
-      rarity: 'rare',
-      unlocked: true
-    },
-    {
-      emoji: '🧁',
-      name: 'Капкейк',
-      description: 'Высокие прыжки',
-      speed: 4,
-      jump: 8,
-      rarity: 'epic',
-      unlocked: true
-    },
-    {
-      emoji: '🍩',
-      name: 'Пончик',
-      description: 'Легендарный бегун',
-      speed: 8,
-      jump: 7,
+      jump: 6,
       rarity: 'legendary',
       unlocked: true
-    },
-    {
-      emoji: '🥖',
-      name: 'Багет',
-      description: 'Скоро откроется...',
-      speed: 6,
-      jump: 5,
-      rarity: 'rare',
-      unlocked: false
-    },
-    {
-      emoji: '🍰',
-      name: 'Тортик',
-      description: 'Скоро откроется...',
-      speed: 5,
-      jump: 6,
-      rarity: 'epic',
-      unlocked: false
     }
   ];
 
@@ -109,8 +64,19 @@ const CharacterGallery = ({ selectedCharacter, onSelectCharacter }: CharacterGal
             onClick={() => char.unlocked && onSelectCharacter(index)}
           >
             <div className="text-center">
-              <div className="text-6xl mb-2 filter drop-shadow-lg">
-                {char.unlocked ? char.emoji : '🔒'}
+              <div className="mb-4 flex justify-center">
+                {char.unlocked ? (
+                  <img 
+                    src={char.image} 
+                    alt={char.name}
+                    className="w-24 h-24 object-contain"
+                    style={{
+                      filter: 'drop-shadow(3px 3px 5px rgba(0,0,0,0.3))'
+                    }}
+                  />
+                ) : (
+                  <div className="text-6xl">🔒</div>
+                )}
               </div>
               
               <Badge 
