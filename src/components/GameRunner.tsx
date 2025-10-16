@@ -20,6 +20,8 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [score, setScore] = useState(0);
   const [donuts, setDonuts] = useState(0);
+  const [missedDonuts, setMissedDonuts] = useState(0);
+  const [lives, setLives] = useState(3);
   const [playerY, setPlayerY] = useState(0);
   const [isJumping, setIsJumping] = useState(false);
   const [playerSpeed, setPlayerSpeed] = useState(3);
@@ -50,7 +52,7 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
       setScore(prev => prev + 1);
 
       if (isJumping) {
-        jumpVelocity -= 0.8;
+        jumpVelocity -= 1.5;
         setPlayerY(prev => {
           const newY = prev + jumpVelocity;
           if (newY <= groundY) {
@@ -106,11 +108,32 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
         setObstacles(prev => [...prev, newObstacle]);
       }
 
-      setDonutsList(prev =>
-        prev
+      setDonutsList(prev => {
+        const filtered = prev
           .map(donut => ({ ...donut, x: donut.x - 5 }))
-          .filter(donut => donut.x > -30)
-      );
+          .filter(donut => {
+            if (donut.x < -30) {
+              setMissedDonuts(m => {
+                const newMissed = m + 1;
+                if (newMissed >= 3) {
+                  setLives(l => {
+                    const newLives = l - 1;
+                    if (newLives <= 0) {
+                      setGameOver(true);
+                      setIsPlaying(false);
+                    }
+                    return newLives;
+                  });
+                  return 0;
+                }
+                return newMissed;
+              });
+              return false;
+            }
+            return donut.x > -30;
+          });
+        return filtered;
+      });
 
       setObstacles(prev =>
         prev
@@ -141,8 +164,15 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
         });
         
         if (playerHit) {
-          setGameOver(true);
-          setIsPlaying(false);
+          setLives(l => {
+            const newLives = l - 1;
+            if (newLives <= 0) {
+              setGameOver(true);
+              setIsPlaying(false);
+            }
+            return newLives;
+          });
+          return prev.filter(obs => obs.x <= 20 || obs.x >= 80);
         }
         return prev;
       });
@@ -174,6 +204,8 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
     setGameWon(false);
     setScore(0);
     setDonuts(0);
+    setMissedDonuts(0);
+    setLives(3);
     setPlayerY(0);
     setEnemyDistance(400);
     setDonutsList([]);
@@ -205,6 +237,16 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
           </div>
           <div className="bg-[#FFB84D] pixel-borders px-4 py-2">
             <span className="text-[#8B4513]">🍩 {donuts}</span>
+          </div>
+          <div className={`pixel-borders px-4 py-2 ${lives === 3 ? 'bg-green-400' : lives === 2 ? 'bg-yellow-400' : 'bg-red-400'}`}>
+            <span className="text-white">
+              ❤️ {lives} {lives === 1 ? 'ЖИЗНЬ' : 'ЖИЗНИ'}
+            </span>
+          </div>
+          <div className="bg-gray-200 pixel-borders px-4 py-2">
+            <span className="text-[#8B4513]">
+              Пропущено: {missedDonuts}/3
+            </span>
           </div>
           <div className={`pixel-borders px-4 py-2 ${speedBoost > 0 ? 'bg-[#FF6B9D] animate-pulse' : 'bg-gray-300'}`}>
             <span className={speedBoost > 0 ? 'text-white' : 'text-gray-500'}>
@@ -240,7 +282,8 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
               ПОГОНЯ!
             </h2>
             <p className="text-white text-sm mb-4 text-center px-4">
-              Враг убегает! Собирай пончики 🍩<br/>для ускорения и догони его!
+              Враг убегает! Собирай пончики 🍩 для ускорения!<br/>
+              У тебя 3 жизни. Не пропусти 3 пончика подряд!
             </p>
             <Button 
               onClick={startGame}
@@ -371,7 +414,7 @@ const GameRunner = ({ selectedCharacter }: GameRunnerProps) => {
       </div>
 
       <div className="mt-4 text-xs text-center text-[#8B4513]">
-        💡 Собирай пончики 🍩 для ускорения! Догони врага, но избегай шипов!
+        💡 Собирай пончики 🍩 для ускорения! У тебя 3 жизни. Пропустишь 3 пончика - потеряешь жизнь!
       </div>
     </div>
   );
